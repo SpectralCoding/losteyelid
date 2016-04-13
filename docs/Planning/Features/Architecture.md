@@ -44,16 +44,16 @@ Distributed
           - Functionality:
               - Analyses Cassandra for outstanding issues
               - Outputs fully formatted alerts to RabbitMQ "Alert Queue"
-      - Alert Executor
+      - Alert Executer
           - Functionality:
               - Listens on RabbitMQ's "Alert Queue" for alerts to send
               - Executes alert tasks:
                   - Send email
                   - Run executable/script
-      - Monitor Job Scheduler
+      - Check Scheduler
           - Functionality:
               - Submits Jobs to the RabbitMQ "Job Queue" with proper info/order/timestamps
-      - Monitor Executor
+      - Check Executer
           - Functionality:
               - Listens for new Jobs on the RabbitMQ "Job Queue"
               - Executes job tasks
