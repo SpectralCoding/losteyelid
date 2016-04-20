@@ -13,7 +13,22 @@ def main(args=None):
 	logger.info("Current System Time: " + datetime.datetime.now().isoformat())
 
 	winrm = WinRM()
-	winrm.run("set", "192.168.122.1", 5985, "/wsman", "RedactedUser", "RedactedPass")
+	# Regular Command Prompt Commands
+	winrm.run(
+		"SET",
+		"",
+		("192.168.122.1", 5985, "/wsman", "WinRMUser", "WinRMPassword")
+	)
+	# Useful PowerShell Options:
+	#    -ExecutionPolicy Bypass -NoLogo -NonInteractive -NoProfile -WindowStyle Hidden
+	# Other thoughts:
+	#    Only select relevant object properties with "Select-Object -Property PropA,PropB,PropN
+	#    Export all data as Minimized JSON with "ConvertTo-Json -Compress"
+	winrm.run(
+		"POWERSHELL",
+		"-Command \"Get-Childitem env:* | Select-Object -Property Name,Value | ConvertTo-Json -Compress\"",
+		("192.168.122.1", 5985, "/wsman", "WinRMUser", "WinRMPassword")
+	)
 
 	# Do argument parsing here (eg. with argparse) and anything else
 	# you want your project to do.

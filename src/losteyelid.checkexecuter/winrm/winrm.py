@@ -12,35 +12,34 @@ class WinRM:
 	def __init__(self):
 		return
 
-	def run(self, command, host, port, path, username, password):
-		run_params = {
-			"resource_uri": "http://schemas.microsoft.com/wbem/wsman/1/windows/shell/cmd",
-			"action": "http://schemas.microsoft.com/wbem/wsman/1/windows/shell/Command",
-			"shell_id": '',
-			"command": command,
-			"host": host,
-			"port": port,
-			"path": "http://" + str(host) + ":" + str(port) + str(path),
-			"username": username,
-			"password": password,
-			"auth": None,
-			"shell_id": None,
-			"command_id": None,
-			"results": None
-		}
-		decoded = username + ":" + password
+	def run(self, command, arguments, conn_config):
+		decoded = conn_config[3] + ":" + conn_config[4]
 		encoded_utf = base64.b64encode(decoded.encode('UTF8'))
-		run_params["auth"] = "Basic " + encoded_utf.decode("ascii")
-		run_params["shell_id"] = self.open_shell(run_params)
-		run_params["command_id"] = self.run_command(run_params)
-		self.get_command_output(run_params)
-		return
+		auth = "Basic " + encoded_utf.decode("ascii")
+		path = "http://" + str(conn_config[0]) + ":" + str(conn_config[1]) + str(conn_config[2])
+		message_id = str(uuid.uuid4())
+		shell_id = self.get_shell(path, auth, message_id)
+		command_id = self.run_command(shell_id, command, arguments, path, auth, message_id)
+		command_output = { "stdout": "", "stderr": "" }
+		receive_more = True
+		while receive_more:
+			xml_resp = self.get_command_output(shell_id, command_id, path, auth, message_id)
+			for cur_block in xml_resp.iterfind(".//{http://schemas.microsoft.com/wbem/wsman/1/windows/shell}Stream"):
+				if cur_block.text is not None:
+					if cur_block.attrib["Name"].lower() == "stdout":
+						command_output["stdout"] += base64.b64decode(cur_block.text).decode("ascii")
+					elif cur_block.attrib["Name"].lower() == "stderr":
+						command_output["stderr"] += base64.b64decode(cur_block.text).decode("ascii")
+			logger.debug(command_output)
+			receive_more = False		# TODO: Figure out at what point we need to receive more!
+		return command_output
 
-	def open_shell(self, run_params):
-		soap_request = self.get_soap_header({
-			"resource_uri": "http://schemas.microsoft.com/wbem/wsman/1/windows/shell/cmd",
-			"action": "http://schemas.xmlsoap.org/ws/2004/09/transfer/Create"
-		})
+	def get_shell(self, path, auth, message_id):
+		soap_request = self.get_soap_header(
+			"http://schemas.microsoft.com/wbem/wsman/1/windows/shell/cmd",
+			"http://schemas.xmlsoap.org/ws/2004/09/transfer/Create",
+			message_id
+		)
 		w = ElementMaker(namespace="http://schemas.dmtf.org/wbem/wsman/1/wsman.xsd")
 		env = ElementMaker(namespace="http://www.w3.org/2003/05/soap-envelope")
 		rsp = ElementMaker(namespace="http://schemas.microsoft.com/wbem/wsman/1/windows/shell")
@@ -59,42 +58,49 @@ class WinRM:
 				w.Option("437", Name="WINRS_CODEPAGE")
 			)
 		)
-		xml_response = self.send_http(soap_request, run_params)
+		xml_response = self.send_http(soap_request, path, auth)
 		response = etree.XML(xml_response)
-		#shell_id = response.findall("{http://schemas.dmtf.org/wbem/wsman/1/wsman.xsd}Selector")
 		return response[1][1][0].text		# TODO: Fix this to be more reliable
 
-	def get_command_output(self, run_params):
-		soap_request = self.get_soap_header({
-			"resource_uri": "http://schemas.microsoft.com/wbem/wsman/1/windows/shell/cmd",
-			"action": "http://schemas.microsoft.com/wbem/wsman/1/windows/shell/Receive",
-			"shell_id": run_params['shell_id']
-		})
+	def get_command_output(self, shell_id, command_id, path, auth, message_id):
+		w = ElementMaker(namespace="http://schemas.dmtf.org/wbem/wsman/1/wsman.xsd")
 		env = ElementMaker(namespace="http://www.w3.org/2003/05/soap-envelope")
 		rsp = ElementMaker(namespace="http://schemas.microsoft.com/wbem/wsman/1/windows/shell")
+		soap_request = self.get_soap_header(
+			"http://schemas.microsoft.com/wbem/wsman/1/windows/shell/cmd",
+			"http://schemas.microsoft.com/wbem/wsman/1/windows/shell/Receive",
+			message_id
+		)
+		header_element = soap_request.find("{http://www.w3.org/2003/05/soap-envelope}Header")
+		header_element.append(
+			w.SelectorSet(
+				w.Selector(shell_id, Name="ShellId")
+			)
+		)
 		soap_request.append(
 			env.Body(
 				rsp.Receive(
-					rsp.DesiredStream("stdout stderr", CommandId=run_params["command_id"])
+					rsp.DesiredStream("stdout stderr", CommandId=command_id)
 				)
 			)
 		)
-		xml_response = self.send_http(soap_request, run_params)
-		response = etree.XML(xml_response)
-		raw_response = response[1][0][1].text
-		logger.debug(base64.b64decode(raw_response).decode("ascii"))
-		#return response[1][0][0].text
-		return
+		xml_response = self.send_http(soap_request, path, auth)
+		return etree.XML(xml_response)
 
-
-	def run_command(self, run_params):
-		soap_request = self.get_soap_header({
-			"resource_uri": "http://schemas.microsoft.com/wbem/wsman/1/windows/shell/cmd",
-			"action": "http://schemas.microsoft.com/wbem/wsman/1/windows/shell/Command",
-			"shell_id": run_params['shell_id']
-		})
-		# TODO: Should the ElementMakers be members?
+	def run_command(self, shell_id, command, arguments, path, auth, message_id):
+		soap_request = self.get_soap_header(
+			"http://schemas.microsoft.com/wbem/wsman/1/windows/shell/cmd",
+			"http://schemas.microsoft.com/wbem/wsman/1/windows/shell/Command",
+			message_id
+		)
 		w = ElementMaker(namespace="http://schemas.dmtf.org/wbem/wsman/1/wsman.xsd")
+		header_element = soap_request.find("{http://www.w3.org/2003/05/soap-envelope}Header")
+		header_element.append(
+			w.SelectorSet(
+				w.Selector(shell_id, Name="ShellId")
+			)
+		)
+		# TODO: Should the ElementMakers be members?
 		header_element = soap_request.find("{http://www.w3.org/2003/05/soap-envelope}Header")
 		header_element.append(
 			w.OptionSet(
@@ -104,36 +110,41 @@ class WinRM:
 		)
 		env = ElementMaker(namespace="http://www.w3.org/2003/05/soap-envelope")
 		rsp = ElementMaker(namespace="http://schemas.microsoft.com/wbem/wsman/1/windows/shell")
+		if arguments:
+			cli_properties = [rsp.Command(command), rsp.Arguments(arguments)]
+		else:
+			cli_properties = [rsp.Command(command)]
 		soap_request.append(
 			env.Body(
 				rsp.CommandLine(
-					rsp.Command(run_params["command"])
+					*cli_properties
 				)
 			)
 		)
-		xml_response = self.send_http(soap_request, run_params)
+
+		xml_response = self.send_http(soap_request, path, auth)
 		response = etree.XML(xml_response)
 		return response[1][0][0].text
 
-	def send_http(self, soap_request, run_params):
+	def send_http(self, soap_request, path, auth):
+		logger.debug("Outgoing:")
 		logger.debug(etree.tostring(soap_request, pretty_print=True).decode("utf-8"))
 		soap_str = etree.tostring(soap_request).decode("utf-8")
 		r = requests.post(
-			run_params["path"],
+			path,
 			headers={
 				"Content-Type": "application/soap+xml;charset=UTF-8",
 				"User-Agent": "JS WinRM Client",
 				"Content-Length": len(soap_str),
-				"Authorization": run_params["auth"]
+				"Authorization": auth
 			},
 			data=soap_str
 		)
+		logger.debug("Incoming:")
 		logger.debug(r.text)
 		return r.text
 
-	def get_soap_header(self, run_params):
-		if "message_id" not in run_params or run_params["message_id"] is None:
-			run_params["message_id"] = str(uuid.uuid4())
+	def get_soap_header(self, resource_uri, action, message_id):
 		env = ElementMaker(
 			namespace="http://www.w3.org/2003/05/soap-envelope",
 			nsmap={
@@ -157,11 +168,8 @@ class WinRM:
 						**{"{http://www.w3.org/2003/05/soap-envelope}mustUnderstand": "true"}
 					)
 				),
-				w.MaxEnvelopeSize(
-					"153600",
-					**{"{http://www.w3.org/2003/05/soap-envelope}mustUnderstand": "true"}
-				),
-				a.MessageID("uuid:" + run_params["message_id"]),
+				w.MaxEnvelopeSize("153600", **{"{http://www.w3.org/2003/05/soap-envelope}mustUnderstand": "true"}),
+				a.MessageID("uuid:" + message_id),
 				w.Locale(
 					**{
 						"{http://www.w3.org/2003/05/soap-envelope}mustUnderstand": "false",
@@ -175,21 +183,8 @@ class WinRM:
 					}
 				),
 				w.OperationTimeout("PT60.000S"),
-				w.ResourceURI(
-					run_params["resource_uri"],  # Swap this later
-					**{"{http://www.w3.org/2003/05/soap-envelope}mustUnderstand": "true"}
-				),
-				a.Action(
-					run_params["action"],  # Swap this later
-					**{"{http://www.w3.org/2003/05/soap-envelope}mustUnderstand": "true"}
-				),
+				w.ResourceURI(resource_uri, **{"{http://www.w3.org/2003/05/soap-envelope}mustUnderstand": "true"}),
+				a.Action(action, **{"{http://www.w3.org/2003/05/soap-envelope}mustUnderstand": "true"}),
 			),
 		)
-		if "shell_id" in run_params and run_params["shell_id"] is not None:
-			header_element = request.find("{http://www.w3.org/2003/05/soap-envelope}Header")
-			header_element.append(
-				w.SelectorSet(
-					w.Selector(run_params["shell_id"], Name="ShellId")
-				)
-			)
 		return request
