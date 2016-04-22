@@ -12,4 +12,4 @@ RUN pip install --upgrade pip
 RUN pip install -r /losteyelid/checkexecutor/requirements.txt
 
 # Set the entrypoint to run the main method
-ENTRYPOINT [ "python", "/losteyelid/checkexecutor/__main__.py" ]
+CMD [ "python", "/losteyelid/checkexecutor/__main__.py" ]
