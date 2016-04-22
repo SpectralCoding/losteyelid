@@ -9,7 +9,7 @@ before_install:
 - docker login -e="$DOCKER_HUB_EMAIL" -u="$DOCKER_HUB_USERNAME" -p="$DOCKER_HUB_PASSWORD"
 
 install:
-- docker build --no-cache -t spectralcoding/losteyelid:checkexecuter-latest .
+- docker build --no-cache -t spectralcoding/losteyelid:checkexecuter-latest src/losteyelid.checkexecuter/
 - docker run spectralcoding/losteyelid:checkexecuter-latest
 
 script:
