@@ -18,12 +18,15 @@ class WinRM:
 		auth = "Basic " + encoded_utf.decode("ascii")
 		path = "http://" + str(conn_config[0]) + ":" + str(conn_config[1]) + str(conn_config[2])
 		message_id = str(uuid.uuid4())
-		shell_id = self.get_shell(path, auth, message_id)
-		command_id = self.run_command(shell_id, command, arguments, path, auth, message_id)
+		shell_xml = self.build_shell_request_xml(message_id)
+		shell_id = self.get_shell(path, auth, shell_xml)
+		command_xml = self.build_command_xml(shell_id, command, arguments, message_id)
+		command_id = self.run_command(path, auth, command_xml)
 		command_output = { "stdout": "", "stderr": "" }
 		receive_more = True
 		while receive_more:
-			xml_resp = self.get_command_output(shell_id, command_id, path, auth, message_id)
+			xml_request = self.build_command_receive_xml(shell_id, command_id, message_id)
+			xml_resp = self.get_command_output(path, auth, xml_request)
 			for cur_block in xml_resp.iterfind(".//{http://schemas.microsoft.com/wbem/wsman/1/windows/shell}Stream"):
 				if cur_block.text is not None:
 					if cur_block.attrib["Name"].lower() == "stdout":
@@ -34,7 +37,7 @@ class WinRM:
 			receive_more = False		# TODO: Figure out at what point we need to receive more!
 		return command_output
 
-	def get_shell(self, path, auth, message_id):
+	def build_shell_request_xml(self, message_id):
 		soap_request = self.get_soap_header(
 			"http://schemas.microsoft.com/wbem/wsman/1/windows/shell/cmd",
 			"http://schemas.xmlsoap.org/ws/2004/09/transfer/Create",
@@ -58,36 +61,14 @@ class WinRM:
 				w.Option("437", Name="WINRS_CODEPAGE")
 			)
 		)
-		xml_response = self.send_http(soap_request, path, auth)
+		return soap_request
+
+	def get_shell(self, path, auth, shell_xml):
+		xml_response = self.send_http(shell_xml, path, auth)
 		response = etree.XML(xml_response)
 		return response[1][1][0].text		# TODO: Fix this to be more reliable
 
-	def get_command_output(self, shell_id, command_id, path, auth, message_id):
-		w = ElementMaker(namespace="http://schemas.dmtf.org/wbem/wsman/1/wsman.xsd")
-		env = ElementMaker(namespace="http://www.w3.org/2003/05/soap-envelope")
-		rsp = ElementMaker(namespace="http://schemas.microsoft.com/wbem/wsman/1/windows/shell")
-		soap_request = self.get_soap_header(
-			"http://schemas.microsoft.com/wbem/wsman/1/windows/shell/cmd",
-			"http://schemas.microsoft.com/wbem/wsman/1/windows/shell/Receive",
-			message_id
-		)
-		header_element = soap_request.find("{http://www.w3.org/2003/05/soap-envelope}Header")
-		header_element.append(
-			w.SelectorSet(
-				w.Selector(shell_id, Name="ShellId")
-			)
-		)
-		soap_request.append(
-			env.Body(
-				rsp.Receive(
-					rsp.DesiredStream("stdout stderr", CommandId=command_id)
-				)
-			)
-		)
-		xml_response = self.send_http(soap_request, path, auth)
-		return etree.XML(xml_response)
-
-	def run_command(self, shell_id, command, arguments, path, auth, message_id):
+	def build_command_xml(self, shell_id, command, arguments, message_id):
 		soap_request = self.get_soap_header(
 			"http://schemas.microsoft.com/wbem/wsman/1/windows/shell/cmd",
 			"http://schemas.microsoft.com/wbem/wsman/1/windows/shell/Command",
@@ -121,10 +102,40 @@ class WinRM:
 				)
 			)
 		)
+		return soap_request
 
-		xml_response = self.send_http(soap_request, path, auth)
+	def run_command(self, path, auth, command_xml):
+		xml_response = self.send_http(command_xml, path, auth)
 		response = etree.XML(xml_response)
 		return response[1][0][0].text
+
+	def build_command_receive_xml(self, shell_id, command_id, message_id):
+		w = ElementMaker(namespace="http://schemas.dmtf.org/wbem/wsman/1/wsman.xsd")
+		env = ElementMaker(namespace="http://www.w3.org/2003/05/soap-envelope")
+		rsp = ElementMaker(namespace="http://schemas.microsoft.com/wbem/wsman/1/windows/shell")
+		soap_request = self.get_soap_header(
+			"http://schemas.microsoft.com/wbem/wsman/1/windows/shell/cmd",
+			"http://schemas.microsoft.com/wbem/wsman/1/windows/shell/Receive",
+			message_id
+		)
+		header_element = soap_request.find("{http://www.w3.org/2003/05/soap-envelope}Header")
+		header_element.append(
+			w.SelectorSet(
+				w.Selector(shell_id, Name="ShellId")
+			)
+		)
+		soap_request.append(
+			env.Body(
+				rsp.Receive(
+					rsp.DesiredStream("stdout stderr", CommandId=command_id)
+				)
+			)
+		)
+		return soap_request
+
+	def get_command_output(self, path, auth, xml_request):
+		xml_response = self.send_http(xml_request, path, auth)
+		return etree.XML(xml_response)
 
 	def send_http(self, soap_request, path, auth):
 		logger.debug("Outgoing:")
