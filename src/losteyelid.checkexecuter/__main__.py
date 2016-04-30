@@ -32,11 +32,8 @@ def main(args=None):
     #    Export all data as Minimized JSON with "ConvertTo-Json -Compress"
     winrm.run(
         "POWERSHELL",
-        (
-            "-Command \"Get-Childitem env:* |",
-            " Select-Object -Property Name,Value |",
-            " ConvertTo-Json -Compress\""
-        ),
+        "-Command \"Get-Childitem env:* | Select-Object -Property Name,Value |"
+        " ConvertTo-Json -Compress\"",
         ("192.168.122.1", 5985, "/wsman", "WinRMUser", "WinRMPassword")
     )
 
