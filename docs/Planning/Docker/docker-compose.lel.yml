@@ -1,0 +1,19 @@
+version: '2'
+services:
+    lel-rabbitmq:
+        image: rabbitmq:3-management
+        container_name: lel-rabbitmq
+        hostname: lem-rabbitmq
+        build: .
+        environment:
+            - RABBITMQ_DEFAULT_USER=default
+            - RABBITMQ_DEFAULT_PASS=default
+        ports:
+            - 5369:4369
+            - 6671:5671
+            - 6672:5672
+            - 16671:15671
+            - 16672:15672
+            - 26672:25672
+        volumes:
+            - /content/losteyelid/master/cassandra:/var/lib/cassandra

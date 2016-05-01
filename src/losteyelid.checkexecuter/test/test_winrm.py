@@ -8,7 +8,6 @@ from winrm.winrm import WinRM
 
 class WinRMTest(unittest.TestCase):
     """Tests the WinRM module."""
-    maxDiff = None
 
     @unittest.skip("Not a good test candidate.")
     def test_run(self):
