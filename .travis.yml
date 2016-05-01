@@ -10,9 +10,12 @@ before_install:
 
 install:
 - docker build --no-cache -t spectralcoding/losteyelid:checkexecuter-latest src/losteyelid.checkexecuter/
+- docker build --no-cache -t spectralcoding/losteyelid:checkscheduler-latest src/losteyelid.checkscheduler/
 
 script:
 - docker run -t -i spectralcoding/losteyelid:checkexecuter-latest python -m unittest discover -v /losteyelid/checkexecutor/
+- docker run -t -i spectralcoding/losteyelid:checkscheduler-latest python -m unittest discover -v /losteyelid/checkscheduler/
 
 after_success:
 - docker push spectralcoding/losteyelid:checkexecuter-latest
+- docker push spectralcoding/losteyelid:checkscheduler-latest
