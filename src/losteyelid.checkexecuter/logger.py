@@ -13,11 +13,45 @@ def get_logger(name):
 
     :param name: The name of the calling class.
     :param level: The logging level to import before the line."""
-    if not os.path.exists('logs'):
-        os.makedirs('logs')
     logger = logging.getLogger('checkexecuter.' + name)
-    config_data = json.load(open('logging.json', 'r'))
-    logging.config.dictConfig(config_data)
+    log_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'logs/')
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+    logging.config.dictConfig({
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "standard": {
+                "format": "%(asctime)s [%(name)s.%(levelname)s]: %(message)s"
+            }
+        },
+        "handlers": {
+            "console": {
+                "level": "DEBUG",
+                "class": "logging.StreamHandler",
+                "formatter": "standard",
+                "stream": "ext://sys.stdout"
+            },
+            "file": {
+                "level": "DEBUG",
+                "class": "logging.handlers.RotatingFileHandler",
+                "formatter": "standard",
+                "filename": os.path.join(log_dir, "checkexecuter.log"),
+                "encoding": "utf8",
+                "maxBytes": 1048576,
+                "backupCount": 10
+            }
+        },
+        "loggers": {
+            "": {
+                "level": "DEBUG",
+                "handlers": [
+                    "console",
+                    "file"
+                ]
+            }
+        }
+    })
     # Force all times to GMT and to use . as delimiter instead of ,
     for cur_handler in logging.getLogger().handlers:
         cur_handler.formatter.converter = time.gmtime
