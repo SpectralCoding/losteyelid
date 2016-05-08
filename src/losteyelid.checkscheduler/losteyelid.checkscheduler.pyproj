@@ -24,10 +24,15 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="check\check.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="check\__init__.py" />
     <Compile Include="logger.py" />
     <Compile Include="producer\producer.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="producer\__init__.py" />
     <Compile Include="test\test_producer.py" />
     <Compile Include="test\__init__.py" />
     <Compile Include="__main__.py">
@@ -38,6 +43,7 @@
     <InterpreterReference Include="{a6c4759f-acbe-4b0b-a09d-8afb34725b71}\3.5" />
   </ItemGroup>
   <ItemGroup>
+    <Folder Include="check\" />
     <Folder Include="producer\" />
     <Folder Include="test\" />
   </ItemGroup>
@@ -45,6 +51,7 @@
     <Content Include=".dockerignore" />
     <Content Include=".gitignore" />
     <Content Include="Dockerfile" />
+    <Content Include="logging.json" />
     <Content Include="pylintrc" />
     <Content Include="requirements.txt" />
   </ItemGroup>

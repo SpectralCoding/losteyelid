@@ -1,0 +1,35 @@
+{
+    "version": 1,
+    "disable_existing_loggers": false,
+    "formatters": {
+        "standard": {
+            "format": "%(asctime)s [%(name)s.%(levelname)s]: %(message)s"
+        }
+    },
+    "handlers": {
+        "console": {
+            "level": "DEBUG",
+            "class": "logging.StreamHandler",
+            "formatter": "standard",
+            "stream": "ext://sys.stdout"
+        },
+        "file": {
+            "level": "DEBUG",
+            "class": "logging.handlers.RotatingFileHandler",
+            "formatter": "standard",
+            "filename": "logs/checkscheduler.log",
+            "encoding": "utf8",
+            "maxBytes": 1048576,
+            "backupCount": 10
+        }
+    },
+    "loggers": {
+        "": {
+            "level": "DEBUG",
+            "handlers": [
+                "console",
+                "file"
+            ]
+        }
+    }
+}

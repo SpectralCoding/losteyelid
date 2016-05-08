@@ -1,14 +1,13 @@
 #!/usr/bin/env python
-"""Submits tasks to the RabbitMQ Queue."""
+"""Submits check results to the RabbitMQ Queue."""
 
-import json
 import pika
 import logger
 
 LOGGER = logger.get_logger(__name__)
 
-class Producer:
-    """Submits tasks to the RabbitMQ Queue."""
+class OutgoingCheckResults:
+    """Submits check results to the RabbitMQ Queue."""
 
     def __init__(self):
         self.connection = None
@@ -25,17 +24,15 @@ class Producer:
             '/',
             credentials))
         self.channel = self.connection.channel()
-        self.channel.queue_declare(queue='LEL.ChecksWaiting')
-        return
+        self.channel.queue_declare(queue='LEL.CheckRawResults')
 
-    def queue_check(self, check):
-        """Submits a command to be run to the queue."""
+    def queue_results(self, check_results):
+        """Submits a check response to be processed to the queue."""
         self.channel.basic_publish(
             exchange='',
-            routing_key='LEL.ChecksWaiting',
-            body=json.dumps(check.__dict__))
+            routing_key='LEL.CheckRawResults',
+            body=check_results)
 
     def disconnect(self):
         """Disconnects from RabbitMQ."""
         self.connection.close()
-        

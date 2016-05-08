@@ -39,3 +39,8 @@ Thumbs.db
 # Editor backup files #
 #######################
 *~
+
+# LostEyelid Specific
+logs
+*.rst
+!index.rst

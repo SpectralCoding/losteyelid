@@ -24,11 +24,29 @@
     <Content Include=".dockerignore" />
     <Content Include=".gitignore" />
     <Content Include="Dockerfile" />
+    <Content Include="logging.json" />
     <Content Include="pylintrc" />
     <Content Include="requirements.txt" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="check_builders\command_check.py" />
+    <Compile Include="check_builders\command_prompt_check.py" />
+    <Compile Include="check_builders\dummy_check.py" />
+    <Compile Include="check_builders\powershell_check.py" />
+    <Compile Include="check_builders\icmp_check.py" />
+    <Compile Include="check_builders\__init__.py" />
+    <Compile Include="check\check.py" />
+    <Compile Include="check\check_result.py" />
+    <Compile Include="check\__init__.py" />
+    <Compile Include="consumers\incomming_check_queue.py" />
+    <Compile Include="consumers\__init__.py" />
     <Compile Include="logger.py" />
+    <Compile Include="producers\outgoing_check_results.py" />
+    <Compile Include="producers\__init__.py" />
+    <Compile Include="test\test_outgoing_check_results.py" />
+    <Compile Include="test\test_incomming_check_queue.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="test\test_winrm.py" />
     <Compile Include="test\__init__.py" />
     <Compile Include="winrm\winrm.py" />
@@ -36,6 +54,10 @@
     <Compile Include="__main__.py" />
   </ItemGroup>
   <ItemGroup>
+    <Folder Include="consumers\" />
+    <Folder Include="check\" />
+    <Folder Include="check_builders\" />
+    <Folder Include="producers\" />
     <Folder Include="test" />
     <Folder Include="winrm" />
   </ItemGroup>

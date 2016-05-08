@@ -4,7 +4,7 @@
 import sys
 import datetime
 import logger
-from winrm.winrm import WinRM
+from consumers.incomming_check_queue import IncommingCheckQueue
 
 LOGGER = logger.get_logger(__name__)
 
@@ -18,6 +18,11 @@ def main(args=None):
     LOGGER.info("Started LostEyelid CheckExecutor v" + __version__)
     LOGGER.info("Current System Time: " + datetime.datetime.now().isoformat())
 
+    inc_queue = IncommingCheckQueue()
+    inc_queue.connect()
+    inc_queue.start_consumer()
+
+    """
     winrm = WinRM()
     # Regular Command Prompt Commands
     winrm.run(
@@ -36,6 +41,7 @@ def main(args=None):
         " ConvertTo-Json -Compress\"",
         ("192.168.122.1", 5985, "/wsman", "WinRMUser", "WinRMPassword")
     )
+    """
 
     # Do argument parsing here (eg. with argparse) and anything else
     # you want your project to do.

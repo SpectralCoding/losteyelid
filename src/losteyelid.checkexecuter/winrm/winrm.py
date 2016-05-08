@@ -142,12 +142,7 @@ class WinRM:
 
         :param wrm_req: The request object containing relevant request data.
         :returns: A tuple containing the stdout and stderr response."""
-        command_output = collections.namedtuple(
-            'WinRMOutput',
-            ['stdout', 'stderr']
-        )
-        command_output.stdout = ""
-        command_output.stderr = ""
+        command_output = {'stdout': '', 'stderr': '', 'exitcode': ''}
         receive_more = True
         while receive_more:
             xml_request = self.build_command_receive_xml(wrm_req)
@@ -156,9 +151,12 @@ class WinRM:
                     ".//{http://schemas.microsoft.com/wbem/wsman/1/windows/shell}Stream"):
                 if cur_block.text is not None:
                     if cur_block.attrib["Name"].lower() == "stdout":
-                        command_output.stdout += base64.b64decode(cur_block.text).decode("ascii")
+                        command_output['stdout'] += base64.b64decode(cur_block.text).decode("ascii")
                     elif cur_block.attrib["Name"].lower() == "stderr":
-                        command_output.stderr += base64.b64decode(cur_block.text).decode("ascii")
+                        command_output['stderr'] += base64.b64decode(cur_block.text).decode("ascii")
+            for cur_block in xml_resp.iterfind(
+                    ".//{http://schemas.microsoft.com/wbem/wsman/1/windows/shell}ExitCode"):
+                command_output['exitcode'] = cur_block.text
             receive_more = False		# TODO: Figure out at what point we need to receive more!
         return command_output
 
@@ -240,8 +238,7 @@ class WinRM:
         :param soap_request: XML Object representing the data to send.
         :param wrm_req: The request object containing relevant request data.
         :returns: The string response from the server."""
-        LOGGER.debug("Outgoing:")
-        LOGGER.debug(etree.tostring(soap_request, pretty_print=True).decode("utf-8"))
+        LOGGER.debug("Outgoing: " + etree.tostring(soap_request).decode("utf-8"))
         soap_str = etree.tostring(soap_request).decode("utf-8")
         ns_r = requests.post(
             wrm_req.path,
@@ -253,8 +250,7 @@ class WinRM:
             },
             data=soap_str
         )
-        LOGGER.debug("Incoming:")
-        LOGGER.debug(ns_r.text)
+        LOGGER.debug("Incoming: " + ns_r.text)
         return ns_r.text
 
     @staticmethod
